@@ -55,6 +55,17 @@ Registra un nuevo usuario/cliente en la plataforma. Protege la contraseña media
   "phone": "+56912345678"
 }
 ```
+
+### ➔ POST `/auth/login`
+Valida las credenciales del usuario contra la base de datos y genera un token JWT firmado para la autorización de rutas protegidas en el frontend.
+
+**Body:**
+```json
+{
+  "email": "contacto@vety.com",
+  "password": "PasswordSegura123"
+}
+```
 ## Estructura del Proyecto
 ```
 src/
