@@ -1,102 +1,88 @@
-<<<<<<< HEAD
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 📌 Descripción General
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend desarrollado con **NestJS** para la gestión integral de una clínica veterinaria. Provee una API robusta, modular y altamente escalable para el control de usuarios, mascotas y agendamiento de horas médicas.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+- **Autenticación Segura:** Sistema de registro e inicio de sesión protegido con hashing de contraseñas y firma de tokens de acceso.
+- **Gestión de Mascotas (Próximamente):** Control de fichas clínicas, especies, razas y asociación directa con sus dueños.
+- **Agendamiento de Citas (Próximamente):** Gestión de horas veterinarias y registro de observaciones clínicas.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 📊 Modelo de Base de Datos
 
-## Project setup
+Estructura relacional diseñada en **PostgreSQL** y gestionada mediante **Prisma ORM**. El diseño actual cuenta con las siguientes entidades principales:
 
-```bash
-$ pnpm install
+* **User:** Propietarios de mascotas y personal de la clínica.
+* **Pet:** Información de los pacientes (mascotas) asociados a un dueño.
+* **Appointment:** Registro de citas médicas agendadas.
+* **ClinicNote:** Observaciones y recomendaciones veterinarias detalladas de cada cita.
+
+---
+
+## 🏗 Arquitectura Modular
+
+El proyecto sigue una arquitectura limpia basada en dominios para asegurar la mantenibilidad y un acoplamiento débil:
+
+- **Modules:** Organización lógica por contexto de negocio (`AuthModule`, `PrismaModule`).
+- **Controllers:** Capa de entrada encargada de recibir las peticiones HTTP y mapear los endpoints.
+- **Services:** Contenedores de la lógica de negocio y procesamiento de datos.
+- **Prisma Infrastructure:** Capa de infraestructura de persistencia configurada mediante un driver adapter profesional para la gestión eficiente del pool de conexiones.
+
+---
+
+## 🧠 Stack Tecnológico
+
+- **Runtime & Framework:** Node.js & NestJS 11
+- **Lenguaje:** TypeScript
+- **Base de Datos & ORM:** PostgreSQL & Prisma ORM
+- **Control de Conexiones:** `pg` (Node-Postgres Pool) & `@prisma/adapter-pg`
+- **Seguridad:** JWT (`@nestjs/jwt`), `bcryptjs`
+- **Validación:** `class-validator` & `class-transformer`
+
+---
+
+## 🔐 Autenticación (Auth)
+
+### ➔ POST `/auth/register`
+Registra un nuevo usuario/cliente en la plataforma. Protege la contraseña mediante hashing asíncrono y omite datos sensibles en la respuesta.
+
+**Body:**
+```json
+{
+  "email": "contacto@vety.com",
+  "password": "PasswordSegura123",
+  "name": "Jeremy",
+  "phone": "+56912345678"
+}
+```
+## Estructura del Proyecto
+```
+src/
+├── main.ts                 # Punto de entrada de la aplicación (Puerto 3001)
+├── app.module.ts           # Módulo raíz que centraliza las importaciones
+├── auth/                   # Módulo de Autenticación
+│   ├── dto/                # Validaciones de entrada (LoginDto, RegisterDto)
+│   ├── auth.controller.ts  # Endpoints de registro y login
+│   └── auth.service.ts     # Lógica de hashing, validación y JWT
+└── prisma/                 # Módulo de Infraestructura de Base de Datos
+    ├── prisma.module.ts    # Envoltura global del ORM
+    └── prisma.service.ts   # Cliente Prisma extendido con Node-Postgres Pool adapter
 ```
 
-## Compile and run the project
-
-```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+## Scripts de Inicialización
+### 1. Instalación de dependencias
 ```
-
-## Run tests
-
-```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+pnpm install
 ```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+### 2. Generar el Cliente de Prisma
 ```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-=======
-# Vety_APP
->>>>>>> 447fab0475c4af72d95e797f7c063b33abfce10c
+pnpm prisma generate
+```
+### 3. Ejecutar Migraciones (Base de Datos)
+```
+pnpm prisma migrate dev
+```
+### 4. Levantar el Entorno de Desarrollo
+```
+pnpm run start:dev
+```
