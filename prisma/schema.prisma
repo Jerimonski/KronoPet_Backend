@@ -18,32 +18,42 @@ model User {
 }
 
 model Pet {
-  id           String        @id @default(uuid())
-  name         String
-  species      String        
-  breed        String?       
-  birthdate    DateTime?
-  ownerId      String
-  owner        User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  appointments Appointment[]
-  createdAt    DateTime      @default(now())
+  id                 String         @id @default(uuid())
+  name               String
+  species            String        
+  breed              String?        
+  gender             String?        
+  birthdate          DateTime?
+  reproductiveStatus String?       
+  ownerId            String
+  owner              User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  medicalEvents      MedicalEvent[] 
+  vaccines           Vaccine[]    
+  createdAt          DateTime       @default(now())
 }
 
-model Appointment {
-  id             String       @id @default(uuid())
-  date           DateTime     
-  reason         String       
-  veterinarian   String       
+model MedicalEvent {
+  id              String   @id @default(uuid())
+  date            DateTime @default(now()) 
+  title           String  
+  reason          String   
+  observations    String   
+  diagnosis       String   
+  recommendations String  
+  weight          Float?   
+  veterinarian    String   
+  petId           String
+  pet             Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+}
+
+model Vaccine {
+  id             String    @id @default(uuid())
+  name           String    
+  status         String    
+  appliedDate    DateTime? 
+  expirationDate DateTime? 
   petId          String
-  pet            Pet          @relation(fields: [petId], references: [id], onDelete: Cascade)
-  notes          ClinicNote?  
-  createdAt      DateTime     @default(now())
-}
-
-model ClinicNote {
-  id            String      @id @default(uuid())
-  appointmentId String      @unique
-  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  observations  String      
-  recommendations String    
+  pet            Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
 }
