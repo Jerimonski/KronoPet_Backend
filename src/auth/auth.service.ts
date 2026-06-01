@@ -17,7 +17,7 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, name, phone } = registerDto;
+    const { email, password, name, phone, address } = registerDto;
 
     const userExists = await this.prisma.user.findUnique({ where: { email } });
     if (userExists) {
@@ -35,6 +35,7 @@ export class AuthService {
         password: hashedPassword,
         name,
         phone,
+        address,
       },
     });
 
@@ -66,5 +67,15 @@ export class AuthService {
       },
       backendToken: this.jwtService.sign(payload),
     };
+  }
+  async findAllWithPets() {
+    return this.prisma.user.findMany({
+      include: {
+        pets: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 }
