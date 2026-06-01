@@ -58,7 +58,8 @@ El proyecto sigue una arquitectura limpia basada en dominios para asegurar la ma
           "email": "tutor.ejemplo@gmail.com",
           "password": "PasswordSegura123",
           "name": "Juan Carlos Pérez",
-          "phone": "+56912345678"
+          "phone": "+56912345678",
+          "address": "Av. connecticut",
         }
         ```
 
@@ -71,6 +72,9 @@ El proyecto sigue una arquitectura limpia basada en dominios para asegurar la ma
           "password": "PasswordSegura123"
         }
         ```
+* **GET `/auth/users`**
+    * *Descripción:* Devuelve la lista completa de los usuarios registrados.
+
 
 ### 2. 🐾 Mascotas (Pets)
 
