@@ -22,4 +22,9 @@ export class MedicalEventsController {
   findAllByPet(@Param('petId', ParseUUIDPipe) petId: string) {
     return this.medicalEventsService.findAllByPet(petId);
   }
+
+  @Get('owner/:ownerId')
+  findAllByOwner(@Param('ownerId', ParseUUIDPipe) ownerId: string) {
+    return this.medicalEventsService.findAllByOwner(ownerId);
+  }
 }

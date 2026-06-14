@@ -11,50 +11,72 @@ model User {
   email     String   @unique
   password  String   
   name      String
-  phone     String?
-  address   String?
+  phone     String   
+  address   String   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   pets      Pet[]
 }
 
 model Pet {
-  id                 String         @id @default(uuid())
+  id                 String               @id @default(uuid())
   name               String
-  species            String        
+  species            String             
   breed              String?        
-  gender             String?        
-  birthdate          DateTime?
-  reproductiveStatus String?       
+  gender             String             
+  birthdate          DateTime           
+  reproductiveStatus String               @default("Intacto") 
   ownerId            String
-  owner              User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner              User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   medicalEvents      MedicalEvent[] 
-  vaccines           Vaccine[]    
-  createdAt          DateTime       @default(now())
+  medicalProducts    PetMedicalProduct[]  
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 }
 
 model MedicalEvent {
-  id              String   @id @default(uuid())
-  date            DateTime @default(now()) 
-  title           String  
-  reason          String   
-  observations    String   
-  diagnosis       String   
-  recommendations String  
-  weight          Float?   
-  veterinarian    String   
-  petId           String
-  pet             Pet      @relation(fields: [petId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
+  id               String                 @id @default(uuid())
+  date             DateTime               @default(now()) 
+  category         String                 
+  title            String              
+  reason           String   
+  observations     String   
+  diagnosis        String   
+  recommendations  String  
+  weight           Float?   
+  veterinarian     String   
+  petId            String
+  pet              Pet                    @relation(fields: [petId], references: [id], onDelete: Cascade)
+  appliedProductId String?
+  appliedProduct   MedicalProductCatalog? @relation(fields: [appliedProductId], references: [id], onUpdate: Cascade)
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 }
 
-model Vaccine {
-  id             String    @id @default(uuid())
-  name           String    
-  status         String    
-  appliedDate    DateTime? 
-  expirationDate DateTime? 
-  petId          String
-  pet            Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
-  createdAt      DateTime  @default(now())
+model MedicalProductCatalog {
+  id                    String              @id @default(uuid())
+  name                  String              @unique 
+  targetSpecies         String              
+  isBase                Boolean             @default(false) 
+  requiresReinforcement Boolean             @default(true)  
+  daysToReinforce       Int?                                
+  petMedicalProducts    PetMedicalProduct[]
+  medicalEvents         MedicalEvent[]      
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+}
+
+model PetMedicalProduct {
+  id                    String                @id @default(uuid())
+  status                String                @default("Pendiente")
+  appliedDate           DateTime? 
+  expirationDate        DateTime?             
+  petId                 String
+  pet                   Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade)
+  medicalProductCatalogId String
+  medicalProductCatalog   MedicalProductCatalog @relation(fields: [medicalProductCatalogId], references: [id], onDelete: Cascade)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@unique([petId, medicalProductCatalogId]) 
 }

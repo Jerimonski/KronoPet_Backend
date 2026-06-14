@@ -8,6 +8,7 @@ export class PetsService {
 
   async create(createPetDto: CreatePetDto) {
     const { ownerId, birthdate, ...petData } = createPetDto;
+
     const ownerExists = await this.prisma.user.findUnique({
       where: { id: ownerId },
     });
@@ -18,7 +19,7 @@ export class PetsService {
     return this.prisma.pet.create({
       data: {
         ...petData,
-        birthdate: birthdate ? new Date(birthdate) : null,
+        birthdate: new Date(birthdate),
         ownerId,
       },
     });
@@ -38,8 +39,11 @@ export class PetsService {
         medicalEvents: {
           orderBy: { date: 'desc' },
         },
-        vaccines: {
-          orderBy: { createdAt: 'asc' },
+        medicalProducts: {
+          include: {
+            medicalProductCatalog: true,
+          },
+          orderBy: { expirationDate: 'asc' },
         },
       },
     });

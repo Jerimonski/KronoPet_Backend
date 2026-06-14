@@ -27,7 +27,7 @@ export class AuthController {
   }
 
   @Get('users')
-  async getAllUsers() {
+  getAllUsers() {
     return this.authService.findAllWithPets();
   }
 }

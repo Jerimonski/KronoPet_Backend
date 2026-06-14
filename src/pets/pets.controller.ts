@@ -1,5 +1,11 @@
-// src/pets/pets.controller.ts
-import { Controller, Post, Body, Get, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 
@@ -13,12 +19,12 @@ export class PetsController {
   }
 
   @Get('owner/:ownerId')
-  findByOwner(@Param('ownerId') ownerId: string) {
+  findByOwner(@Param('ownerId', ParseUUIDPipe) ownerId: string) {
     return this.petsService.findAllByOwner(ownerId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.petsService.findOneWithDetails(id);
   }
 }

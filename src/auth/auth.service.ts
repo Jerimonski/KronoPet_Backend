@@ -39,10 +39,9 @@ export class AuthService {
       },
     });
 
-    const result = { ...user };
-    delete (result as any).password;
+    const { password: _, ...userWithoutPassword } = user;
 
-    return result;
+    return userWithoutPassword;
   }
 
   async login(loginDto: LoginDto) {
@@ -68,6 +67,7 @@ export class AuthService {
       backendToken: this.jwtService.sign(payload),
     };
   }
+
   async findAllWithPets() {
     return this.prisma.user.findMany({
       include: {
