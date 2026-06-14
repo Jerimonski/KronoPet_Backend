@@ -73,7 +73,7 @@ El proyecto sigue una arquitectura limpia basada en dominios para asegurar la ma
         }
         ```
 * **GET `/auth/users`**
-    * *Descripción:* Devuelve la lista completa de los usuarios registrados.
+    * *Descripción:* Devuelve la lista completa de tutores registrados en la clínica, incluyendo un arreglo anidado con sus respectivas mascotas.
 
 
 ### 2. 🐾 Mascotas (Pets)
@@ -102,7 +102,7 @@ El proyecto sigue una arquitectura limpia basada en dominios para asegurar la ma
 ### 📋 3. Historial Clínico (Medical Events)
 
 * **POST `/medical-events`**
-    * *Descripción:* Registra una nueva atención clínica en el sistema (utilizado por el veterinario desde la app de Python).
+    * *Descripción:* Registra una nueva atención clínica en el sistema.
     * *Body (JSON):*
         ```json
         {
@@ -121,23 +121,34 @@ El proyecto sigue una arquitectura limpia basada en dominios para asegurar la ma
 * **GET `/medical-events/pet/:petId`**
     * *Descripción:* Trae la lista completa de atenciones médicas exclusivas de la mascota, ordenadas cronológicamente (más reciente primero) para alimentar el Timeline en Flutter.
 
-### 💉 4. Control de Vacunas (Vaccines)
+* **GET `/medical-events/owner/:ownerId`**
+    * *Descripción:* Endpoint estratégico que unifica el historial de todas las mascotas de un solo tutor. Evita peticiones repetitivas (N+1) en Flutter.
 
-* **POST `/vaccines`**
-    * *Descripción:* Registra una dosis de inmunización aplicada o programa una dosis pendiente en el calendario.
+### 🧪 4. Catálogo y Cartola Sanitaria (medical-products)
+
+* **POST `/medical-products`**
+    * *Descripción:* Registra un fármaco, vacuna o antiparasitario en el Catálogo Maestro Global (Panel Administrador). Define si es obligatorio (isBase) y los días de desfase para su reaplicación.
     * *Body (JSON):*
         ```json
-        {
-          "petId": "uuid-de-la-mascota-aqui",
-          "name": "Vacuna Antirrábica",
-          "status": "Aplicada",
-          "appliedDate": "2026-05-30",
-          "expirationDate": "2027-05-30"
-        }
+         {
+           "name": "Antiparasitario Interno Felino Toltrazuril",
+           "targetSpecies": "Gato",
+           "isBase": true,
+           "requiresReinforcement": true,
+           "daysToReinforce": 90
+         }
         ```
 
-* **GET `/vaccines/pet/:petId`**
-    * *Descripción:* Devuelve la cartola preventiva de la mascota. Utilizado por Flutter para pintar el estado visual (Vacunas al día / Pendientes).
+* **GET `/medical-products/catalog?species=Gato`**
+    * *Descripción:* Lista los fármacos disponibles en el catálogo base. Soporta filtros por especie para poblar los selectores dinámicos en el sistema Python.
+
+* **GET `/medical-products/pet/:petId`**
+    * *Descripción:* Devuelve la cartola sanitaria real y calculada de la mascota (vacunas y antiparasitarios aplicados con sus fechas de expiración exactas).
+
+### 📊 5. Panel de Analítica (dashboard)
+
+* **GET `/dashboard`**
+    * *Descripción:* Endpoint centralizado para el software de escritorio en Python. Retorna KPIs globales, registros demográficos segmentados por tiempo (hoy, semana, mes) y las métricas de atenciones mensuales listas para graficar.
 
 ---
 
@@ -145,13 +156,38 @@ El proyecto sigue una arquitectura limpia basada en dominios para asegurar la ma
 
 ```text
 src/
-├── main.ts                       # Punto de entrada de la aplicación (Puerto 3001)
-├── app.module.ts                 # Módulo raíz que centraliza los 5 módulos del dominio
-├── prisma/                       # Infraestructura global del ORM (Servicio y Módulo)
-├── auth/                         # Módulo de Autenticación (DTOs, Servicio, Controlador)
-├── pets/                         # Módulo de Mascotas (DTOs, Servicio, Controlador)
-├── medical-events/               # Módulo de Atenciones Clínicas (DTOs, Servicio, Controlador)
-└── vaccines/                     # Módulo de Inmunizaciones (DTOs, Servicio, Controlador)
+├── main.ts                       # Punto de entrada de la aplicación NestJS (Puerto 3001)
+├── app.module.ts                 # Módulo raíz que centraliza los 5 módulos del negocio
+├── prisma/                       # Conector global de Prisma Service
+│
+├── auth/                         # Gestión de Usuarios y Login
+│   ├── dto/                      # login.dto.ts, register.dto.ts
+│   ├── auth.controller.ts
+│   ├── auth.service.ts
+│   └── auth.module.ts
+│
+├── pets/                         # Gestión y Fichas de Mascotas
+│   ├── dto/                      # create-pet.dto.ts
+│   ├── pets.controller.ts
+│   ├── pets.service.ts
+│   └── pets.module.ts
+│
+├── medical-events/               # Atenciones Clínicas y Transacciones
+│   ├── dto/                      # create-medical-event.dto.ts
+│   ├── medical-events.controller.ts
+│   ├── medical-events.service.ts
+│   └── medical-events.module.ts
+│
+├── medical-products/             # Catálogo Maestro y Cartolas Sanitarias (Ex-Vaccines)
+│   ├── dto/                      # create-medical-product.dto.ts
+│   ├── medical-products.controller.ts
+│   ├── medical-products.service.ts
+│   └── medical-products.module.ts
+│
+└── dashboard/                    # Endpoints Estadísticos para la app de Python
+    ├── dashboard.controller.ts
+    ├── dashboard.service.ts
+    └── dashboard.module.ts
 ```
 ## Scripts de Inicialización
 ### 1. Instalación de dependencias
