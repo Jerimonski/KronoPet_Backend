@@ -138,6 +138,18 @@ El proyecto sigue una arquitectura limpia basada en dominios para asegurar la ma
            "daysToReinforce": 90
          }
         ```
+* **POST `/medical-products/assign`**
+  * *Descripción:*Registra o inyecta una vacuna o fármaco en la cartola específica de una mascota (PetMedicalProduct). Sirve como puente para setear si el estado está "Aplicada" (asociando fecha de aplicación) o "Pendiente".
+  * *Body (JSON):*
+    ```json
+         {
+           "petId": "uuid-de-la-mascota-aqui",
+           "medicalProductCatalogId": "uuid-de-la-vacuna-aqui",
+           "status": "Aplicada", 
+           "appliedDate": "2026-01-20T00:00:00.000Z",
+           "expirationDate": "2027-01-20T00:00:00.000Z"
+         }
+    ```
 
 * **GET `/medical-products/catalog?species=Gato`**
     * *Descripción:* Lista los fármacos disponibles en el catálogo base. Soporta filtros por especie para poblar los selectores dinámicos en el sistema Python.
