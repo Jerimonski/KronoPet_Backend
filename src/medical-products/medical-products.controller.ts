@@ -21,6 +21,28 @@ export class MedicalProductsController {
     return this.medicalProductsService.create(createMedicalProductDto);
   }
 
+  @Post('assign')
+  assignProduct(
+    @Body()
+    dto: {
+      petId: string;
+      medicalProductCatalogId: string;
+      status: string;
+      appliedDate?: string;
+      expirationDate?: string;
+    },
+  ) {
+    return this.medicalProductsService.assignProductToPet({
+      petId: dto.petId,
+      medicalProductCatalogId: dto.medicalProductCatalogId,
+      status: dto.status,
+      appliedDate: dto.appliedDate ? new Date(dto.appliedDate) : undefined,
+      expirationDate: dto.expirationDate
+        ? new Date(dto.expirationDate)
+        : undefined,
+    });
+  }
+
   @Get('catalog')
   findCatalog(@Query('species') species?: string) {
     return this.medicalProductsService.findCatalogBySpecies(species);
