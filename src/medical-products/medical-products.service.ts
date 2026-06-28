@@ -37,23 +37,60 @@ export class MedicalProductsService {
   }
 
   async findPetCartola(petId: string) {
-    const petExists = await this.prisma.pet.findUnique({
+    const pet = await this.prisma.pet.findUnique({
       where: { id: petId },
     });
-    if (!petExists) {
+    if (!pet) {
       throw new NotFoundException('La mascota especificada no existe');
     }
 
-    return this.prisma.petMedicalProduct.findMany({
-      where: { petId },
-      include: {
-        medicalProductCatalog: true,
+    const speciesCatalog = await this.prisma.medicalProductCatalog.findMany({
+      where: {
+        targetSpecies: { equals: pet.species, mode: 'insensitive' },
       },
-      orderBy: { expirationDate: 'asc' },
+      orderBy: { name: 'asc' },
     });
+
+    const petProducts = await this.prisma.petMedicalProduct.findMany({
+      where: { petId },
+      include: { medicalProductCatalog: true },
+    });
+
+    const fullCartola = speciesCatalog.map((catalogItem) => {
+      const userRecord = petProducts.find(
+        (pp) => pp.medicalProductCatalogId === catalogItem.id,
+      );
+
+      if (userRecord) {
+        return {
+          id: userRecord.id,
+          petId: userRecord.petId,
+          medicalProductCatalogId: userRecord.medicalProductCatalogId,
+          status: userRecord.status,
+          appliedDate: userRecord.appliedDate,
+          expirationDate: userRecord.expirationDate,
+          createdAt: userRecord.createdAt,
+          updatedAt: userRecord.updatedAt,
+          medicalProductCatalog: catalogItem,
+        };
+      }
+
+      return {
+        id: `temp-${catalogItem.id}`,
+        petId: pet.id,
+        medicalProductCatalogId: catalogItem.id,
+        status: 'Pendiente',
+        appliedDate: null,
+        expirationDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        medicalProductCatalog: catalogItem,
+      };
+    });
+
+    return fullCartola;
   }
 
-  // 🌟 NUEVO MÉTODO: Permite insertar registros en la tabla relacional intermedia
   async assignProductToPet(data: {
     petId: string;
     medicalProductCatalogId: string;
@@ -61,7 +98,6 @@ export class MedicalProductsService {
     appliedDate?: Date;
     expirationDate?: Date;
   }) {
-    // 1. Validar que la mascota exista antes de asociar
     const petExists = await this.prisma.pet.findUnique({
       where: { id: data.petId },
     });
@@ -69,7 +105,6 @@ export class MedicalProductsService {
       throw new NotFoundException('La mascota especificada no existe');
     }
 
-    // 2. Validar que el producto biológico o vacuna exista en el catálogo maestro
     const catalogExists = await this.prisma.medicalProductCatalog.findUnique({
       where: { id: data.medicalProductCatalogId },
     });
@@ -79,7 +114,6 @@ export class MedicalProductsService {
       );
     }
 
-    // 3. Crear el registro en la tabla pivote que estaba vacía
     return this.prisma.petMedicalProduct.create({
       data: {
         petId: data.petId,
@@ -89,7 +123,7 @@ export class MedicalProductsService {
         expirationDate: data.expirationDate || null,
       },
       include: {
-        medicalProductCatalog: true, // Retorna el objeto completo estructurado
+        medicalProductCatalog: true,
       },
     });
   }
