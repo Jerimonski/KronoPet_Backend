@@ -19,19 +19,20 @@ model User {
 }
 
 model Pet {
-  id                 String               @id @default(uuid())
+  id                 String              @id @default(uuid())
   name               String
-  species            String             
+  species            String              
   breed              String?        
-  gender             String             
+  gender             String              
   birthdate          DateTime           
-  reproductiveStatus String               @default("Intacto") 
+  reproductiveStatus String              @default("Intacto") 
+  weight             Float?              // 🌟 AGREGADO: Peso actual de la mascota en kg
   ownerId            String
-  owner              User                 @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   medicalEvents      MedicalEvent[] 
   medicalProducts    PetMedicalProduct[]  
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model MedicalEvent {
@@ -43,7 +44,7 @@ model MedicalEvent {
   observations     String   
   diagnosis        String   
   recommendations  String  
-  weight           Float?   
+  weight           Float?   // Mantiene el registro histórico de esa consulta específica
   veterinarian     String   
   petId            String
   pet              Pet                    @relation(fields: [petId], references: [id], onDelete: Cascade)
@@ -54,29 +55,29 @@ model MedicalEvent {
 }
 
 model MedicalProductCatalog {
-  id                    String              @id @default(uuid())
-  name                  String              @unique 
+  id                    String                 @id @default(uuid())
+  name                  String                 @unique 
   targetSpecies         String              
-  isBase                Boolean             @default(false) 
-  requiresReinforcement Boolean             @default(true)  
-  daysToReinforce       Int?                                
+  isBase                Boolean                @default(false) 
+  requiresReinforcement Boolean                @default(true)  
+  daysToReinforce       Int?                                                                
   petMedicalProducts    PetMedicalProduct[]
   medicalEvents         MedicalEvent[]      
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 }
 
 model PetMedicalProduct {
-  id                    String                @id @default(uuid())
-  status                String                @default("Pendiente")
-  appliedDate           DateTime? 
-  expirationDate        DateTime?             
-  petId                 String
-  pet                   Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade)
+  id                      String                @id @default(uuid())
+  status                  String                @default("Pendiente")
+  appliedDate             DateTime? 
+  expirationDate          DateTime?             
+  petId                   String
+  pet                     Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade)
   medicalProductCatalogId String
   medicalProductCatalog   MedicalProductCatalog @relation(fields: [medicalProductCatalogId], references: [id], onDelete: Cascade)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
 
   @@unique([petId, medicalProductCatalogId]) 
 }

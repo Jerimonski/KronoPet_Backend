@@ -4,6 +4,7 @@ import {
   IsDateString,
   IsUUID,
   IsIn,
+  IsNumber,
 } from 'class-validator';
 
 const VALID_SPECIES = ['Perro', 'Gato'];
@@ -39,6 +40,10 @@ export class CreatePetDto {
     message: `El estado reproductivo debe ser: ${VALID_STATUS.join(', ')}`,
   })
   reproductiveStatus?: string;
+
+  @IsNumber()
+  @IsOptional()
+  weight?: number; // 🌟 AGREGADO: Permite recibir el peso actual desde Flutter
 
   @IsUUID()
   ownerId!: string;

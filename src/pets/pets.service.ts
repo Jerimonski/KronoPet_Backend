@@ -7,7 +7,7 @@ export class PetsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(createPetDto: CreatePetDto) {
-    const { ownerId, birthdate, ...petData } = createPetDto;
+    const { ownerId, birthdate, weight, ...petData } = createPetDto;
 
     const ownerExists = await this.prisma.user.findUnique({
       where: { id: ownerId },
@@ -20,14 +20,23 @@ export class PetsService {
       data: {
         ...petData,
         birthdate: new Date(birthdate),
+        weight: weight ?? null, // 🌟 AGREGADO: Almacena el peso si viene en el DTO
         ownerId,
       },
     });
   }
 
+  // 🌟 MODIFICADO: Ahora incluye los productos/vacunas para que el Home de Flutter no marque 0
   async findAllByOwner(ownerId: string) {
     return this.prisma.pet.findMany({
       where: { ownerId },
+      include: {
+        medicalProducts: {
+          include: {
+            medicalProductCatalog: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }
