@@ -87,6 +87,7 @@ El proyecto sigue una arquitectura limpia basada en dominios para asegurar la ma
           "species": "Perro",
           "breed": "Golden Retriever",
           "gender": "Macho",
+          "weight": 34.5,
           "birthdate": "2022-04-15",
           "reproductiveStatus": "Castrado",
           "ownerId": "uuid-del-dueño-aqui"
