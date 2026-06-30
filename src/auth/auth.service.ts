@@ -58,12 +58,12 @@ export class AuthService {
     }
 
     const payload = { sub: user.id, email: user.email };
+
+    // 🌟 CORREGIDO: Extraemos de forma limpia todo el usuario (incluyendo phone y address) omitiendo la contraseña
+    const { password: _, ...userWithoutPassword } = user;
+
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
+      user: userWithoutPassword, // Ahora el frontend recibe la data completa del tutor
       backendToken: this.jwtService.sign(payload),
     };
   }
