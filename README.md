@@ -1,8 +1,8 @@
-# 🐾 VETY - Backend API
+# 🐾 KronoPet - Backend API
 
 📌 **Descripción General**
 
-Backend desarrollado con **NestJS** para la gestión integral de la clínica veterinaria **VETY**. Provee una API REST robusta, modular y centralizada encargada de comunicar el sistema de escritorio de la veterinaria (desarrollado en Python) con la aplicación móvil de consulta para los tutores (desarrollada en Flutter).
+Backend desarrollado con **NestJS** para la gestión integral de la clínica veterinaria **KronoPet**. Provee una API REST robusta, modular y centralizada encargada de comunicar el sistema de escritorio de la veterinaria (desarrollado en Python) con la aplicación móvil de consulta para los tutores (desarrollada en Flutter).
 
 * **Autenticación y Cuentas:** Sistema de registro e inicio de sesión con hashing asíncrono de contraseñas y firma de tokens JWT.
 * **Gestión Centralizada de Pacientes:** Control absoluto de fichas de mascotas asociadas directamente a sus dueños mediante llaves foráneas (`UUID`).
