@@ -114,13 +114,25 @@ export class MedicalProductsService {
       );
     }
 
-    return this.prisma.petMedicalProduct.create({
-      data: {
+    const record = {
+      status: data.status,
+      appliedDate: data.appliedDate || null,
+      expirationDate: data.expirationDate || null,
+    };
+
+    // Upsert: si la mascota ya tenía este producto, se actualiza en vez de fallar por el índice único
+    return this.prisma.petMedicalProduct.upsert({
+      where: {
+        petId_medicalProductCatalogId: {
+          petId: data.petId,
+          medicalProductCatalogId: data.medicalProductCatalogId,
+        },
+      },
+      update: record,
+      create: {
         petId: data.petId,
         medicalProductCatalogId: data.medicalProductCatalogId,
-        status: data.status,
-        appliedDate: data.appliedDate || null,
-        expirationDate: data.expirationDate || null,
+        ...record,
       },
       include: {
         medicalProductCatalog: true,
