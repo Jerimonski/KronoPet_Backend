@@ -6,7 +6,7 @@ import { PrismaModule } from './../prisma/prisma.module';
 import { PetsModule } from './pets/pets.module';
 import { MedicalProductsModule } from './medical-products/medical-products.module';
 import { MedicalEventsModule } from './medical-events/medical-events.module';
-import { DashboardModule } from './dashboard.service.ts/dashboard.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
