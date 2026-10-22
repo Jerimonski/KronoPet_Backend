@@ -1,0 +1,38 @@
+name: kronopet
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kronopet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kronopet}
+      POSTGRES_DB: ${POSTGRES_DB:-kronopet_db}
+    ports:
+      - '${DB_PORT:-5433}:5432'
+    volumes:
+      - kronopet-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Backend dockerizado (opcional): aplica migraciones, carga el seed y levanta la API.
+  # Se levanta con: docker compose --profile api up -d --build
+  api:
+    profiles: ['api']
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kronopet}:${POSTGRES_PASSWORD:-kronopet}@db:5432/${POSTGRES_DB:-kronopet_db}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-cambia-este-secreto}
+      PORT: 3001
+    ports:
+      - '${PORT:-3001}:3001'
+
+volumes:
+  kronopet-db-data:
