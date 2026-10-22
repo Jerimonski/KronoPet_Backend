@@ -6,78 +6,291 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String   
-  name      String
-  phone     String   
-  address   String   
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  pets      Pet[]
+// --- ENUMS ---
+enum StaffRole {
+  veterinario
+  administrador
+}
+
+enum Species {
+  Perro
+  Gato
+  Ave
+  Conejo
+  Otro
+}
+
+enum PetSex {
+  Macho
+  Hembra
+}
+
+enum ReproductiveStatus {
+  Entero
+  Esterilizado
+}
+
+enum PetAlertType {
+  alergia
+  condicion
+  comportamiento
+  otra
+}
+
+enum MedicalReason {
+  ConsultaGeneral         @map("Consulta General")
+  ControlSanoRutina       @map("Control Sano y Rutina")
+  UrgenciaEmergencia      @map("Urgencia / Emergencia")
+  ProcedimientoQuirurgico @map("Procedimiento Quirúrgico")
+  ExamenLaboratorio       @map("Examen de Laboratorio")
+  Desparasitacion         @map("Desparasitación")
+}
+
+enum AttachmentCategory {
+  laboratorio
+  imagen
+  documento
+}
+
+enum VaccineStatus {
+  aplicada
+  pendiente
+}
+
+enum AuditAction {
+  crear
+  editar
+  eliminar
+  deshabilitar
+  habilitar
+  adjuntar
+  enviar
+}
+
+enum AuditEntity {
+  tutor
+  mascota
+  ficha
+  vacuna
+  equipo
+  alerta
+  adjunto
+  recordatorio
+}
+
+enum ReminderKind {
+  vacuna_vencida
+  vacuna_por_vencer
+  vacuna_pendiente
+  control
+}
+
+enum ReminderStatus {
+  enviado
+  error
+}
+
+// --- MODELOS ---
+
+model StaffUser {
+  id            String     @id @default(uuid()) @db.Uuid
+  name          String     @db.VarChar(120)
+  rut           String     @unique @db.VarChar(12)
+  email         String     @unique @db.Citext
+  phone         String?    @db.VarChar(20)
+  role          StaffRole
+  specialty     String?    @db.VarChar(120)
+  passwordHash  String     @db.Text
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now()) @db.Timestamp()
+  deactivatedAt DateTime?  @db.Timestamp()
+
+  medicalEvents MedicalEvent[]
+  petAlerts     PetAlert[]
+  attachments   Attachment[]
+  auditEntries  AuditEntry[]
+  reminderLogs  ReminderLog[]
+
+  @@map("staff_users")
+}
+
+model Tutor {
+  id           String    @id @default(uuid()) @db.Uuid
+  name         String    @db.VarChar(120)
+  rut          String    @unique @db.VarChar(12)
+  email        String    @unique @db.Citext
+  phone        String?   @db.VarChar(20)
+  address      String?   @db.VarChar(200)
+  passwordHash String?   @db.Text
+  createdAt    DateTime  @default(now()) @db.Timestamp()
+  updatedAt    DateTime  @updatedAt @db.Timestamp()
+
+  pets         Pet[]
+  reminderLogs ReminderLog[]
+
+  @@map("tutors")
 }
 
 model Pet {
-  id                 String              @id @default(uuid())
-  name               String
-  species            String              
-  breed              String?        
-  gender             String              
-  birthdate          DateTime           
-  reproductiveStatus String              @default("Intacto") 
-  weight             Float?              // 🌟 AGREGADO: Peso actual de la mascota en kg
-  ownerId            String
-  owner              User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  medicalEvents      MedicalEvent[] 
-  medicalProducts    PetMedicalProduct[]  
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  id                 String             @id @default(uuid()) @db.Uuid
+  tutorId            String             @db.Uuid
+  name               String             @db.VarChar(80)
+  species            Species
+  breed              String             @db.VarChar(80)
+  sex                PetSex
+  birthDate          DateTime?          @db.Date
+  reproductiveStatus ReproductiveStatus
+  createdAt          DateTime           @default(now()) @db.Timestamp()
+
+  tutor         Tutor           @relation(fields: [tutorId], references: [id], onDelete: Restrict)
+  alerts        PetAlert[]
+  medicalEvents MedicalEvent[]
+  attachments   Attachment[]
+  vaccines      Vaccine[]
+  reminderLogs  ReminderLog[]
+
+  @@map("pets")
+}
+
+model PetAlert {
+  id          String       @id @default(uuid()) @db.Uuid
+  petId       String       @db.Uuid
+  type        PetAlertType
+  description String       @db.VarChar(120)
+  createdAt   DateTime     @default(now()) @db.Timestamp()
+  createdBy   String       @db.Uuid
+
+  pet     Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  creator StaffUser @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@map("pet_alerts")
 }
 
 model MedicalEvent {
-  id               String                 @id @default(uuid())
-  date             DateTime               @default(now()) 
-  category         String                 
-  title            String              
-  reason           String   
-  observations     String   
-  diagnosis        String   
-  recommendations  String  
-  weight           Float?   // Mantiene el registro histórico de esa consulta específica
-  veterinarian     String   
-  petId            String
-  pet              Pet                    @relation(fields: [petId], references: [id], onDelete: Cascade)
-  appliedProductId String?
-  appliedProduct   MedicalProductCatalog? @relation(fields: [appliedProductId], references: [id], onUpdate: Cascade)
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  id              String        @id @default(uuid()) @db.Uuid
+  petId           String        @db.Uuid
+  vetId           String        @db.Uuid
+  date            DateTime      @db.Date
+  title           String        @db.VarChar(150)
+  reason          MedicalReason
+  observations    String?       @db.Text
+  diagnosis       String?       @db.Text
+  recommendations String        @default("") @db.Text
+  weightKg        Decimal       @db.Decimal(5, 2)
+  followUpDate    DateTime?     @db.Date
+  createdAt       DateTime      @default(now()) @db.Timestamp()
+
+  pet         Pet          @relation(fields: [petId], references: [id], onDelete: Cascade)
+  vet         StaffUser    @relation(fields: [vetId], references: [id], onDelete: Restrict)
+  attachments Attachment[]
+
+  @@map("medical_events")
+}
+
+model Attachment {
+  id          String             @id @default(uuid()) @db.Uuid
+  eventId     String             @db.Uuid
+  petId       String             @db.Uuid
+  name        String             @db.VarChar(255)
+  mimeType    String             @db.VarChar(50)
+  size        Int
+  category    AttachmentCategory
+  storageKey  String             @db.Text
+  uploadedAt  DateTime           @default(now()) @db.Timestamp()
+  uploadedBy  String             @db.Uuid
+
+  event    MedicalEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  pet      Pet          @relation(fields: [petId], references: [id], onDelete: Cascade)
+  uploader StaffUser    @relation(fields: [uploadedBy], references: [id], onDelete: Restrict)
+
+  @@map("attachments")
+}
+
+model Vaccine {
+  id          String        @id @default(uuid()) @db.Uuid
+  petId       String        @db.Uuid
+  catalogId   String?       @db.Uuid
+  name        String        @db.VarChar(120)
+  status      VaccineStatus
+  appliedAt   DateTime?     @db.Date
+  expiresAt   DateTime      @db.Date
+  description String        @default("") @db.Text
+  createdAt   DateTime      @default(now()) @db.Timestamp()
+
+  pet     Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade)
+  catalog MedicalProductCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)
+
+  @@map("vaccines")
 }
 
 model MedicalProductCatalog {
-  id                    String                 @id @default(uuid())
-  name                  String                 @unique 
-  targetSpecies         String              
-  isBase                Boolean                @default(false) 
-  requiresReinforcement Boolean                @default(true)  
-  daysToReinforce       Int?                                                                
-  petMedicalProducts    PetMedicalProduct[]
-  medicalEvents         MedicalEvent[]      
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
+  id                   String   @id @default(uuid()) @db.Uuid
+  name                 String   @unique
+  targetSpecies        Species
+  isBase               Boolean  @default(false)
+  requiresReinforcement Boolean @default(true)
+  daysToReinforce      Int?
+  createdAt            DateTime @default(now()) @db.Timestamp()
+  updatedAt            DateTime @updatedAt @db.Timestamp()
+
+  vaccines Vaccine[]
+
+  @@map("medical_product_catalog")
 }
 
-model PetMedicalProduct {
-  id                      String                @id @default(uuid())
-  status                  String                @default("Pendiente")
-  appliedDate             DateTime? 
-  expirationDate          DateTime?             
-  petId                   String
-  pet                     Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade)
-  medicalProductCatalogId String
-  medicalProductCatalog   MedicalProductCatalog @relation(fields: [medicalProductCatalogId], references: [id], onDelete: Cascade)
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
+model AuditEntry {
+  id          String      @id @default(uuid()) @db.Uuid
+  at          DateTime    @default(now()) @db.Timestamp()
+  actorId     String?     @db.Uuid
+  action      AuditAction
+  entity      AuditEntity
+  entityId    String      @db.Uuid
+  entityLabel String      @db.VarChar(200)
+  changes     Json?
 
-  @@unique([petId, medicalProductCatalogId]) 
+  actor StaffUser? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@map("audit_entries")
+}
+
+model ReminderLog {
+  id        String         @id @default(uuid()) @db.Uuid
+  key       String         @db.VarChar(120)
+  kind      ReminderKind
+  tutorId   String         @db.Uuid
+  petId     String         @db.Uuid
+  refId     String         @db.Uuid
+  dueDate   DateTime       @db.Date
+  toEmail   String         @db.Citext
+  sentAt    DateTime       @default(now()) @db.Timestamp()
+  sentBy    String?        @db.Uuid
+  status    ReminderStatus
+  error     String?        @db.Text
+
+  tutor Tutor      @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  pet   Pet        @relation(fields: [petId], references: [id], onDelete: Cascade)
+  sender StaffUser? @relation(fields: [sentBy], references: [id])
+
+  @@index([key])
+  @@map("reminder_logs")
+}
+
+model ReminderSettings {
+  id          Int      @id @default(1) @db.SmallInt
+  daysBefore  Int      @default(7) @db.SmallInt
+  autoSend    Boolean  @default(false)
+  lastAutoRun DateTime? @db.Date
+
+  @@map("reminder_settings")
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(120)
+  email     String   @db.Citext
+  clinic    String?  @db.VarChar(120)
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @db.Timestamp()
+
+  @@map("contact_messages")
 }
