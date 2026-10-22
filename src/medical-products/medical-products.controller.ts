@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { MedicalProductsService } from './medical-products.service';
 import { CreateMedicalProductDto } from './dto/create-medical-products.dto';
+import { AssignMedicalProductDto } from './dto/assign-medical-product.dto';
 
 @Controller('medical-products')
 export class MedicalProductsController {
@@ -22,16 +23,7 @@ export class MedicalProductsController {
   }
 
   @Post('assign')
-  assignProduct(
-    @Body()
-    dto: {
-      petId: string;
-      medicalProductCatalogId: string;
-      status: string;
-      appliedDate?: string;
-      expirationDate?: string;
-    },
-  ) {
+  assignProduct(@Body() dto: AssignMedicalProductDto) {
     return this.medicalProductsService.assignProductToPet({
       petId: dto.petId,
       medicalProductCatalogId: dto.medicalProductCatalogId,
