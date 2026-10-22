@@ -1,221 +1,272 @@
 # 🐾 KronoPet - Backend API
 
-📌 **Descripción General**
+Backend en **NestJS** para la gestión de la clínica veterinaria **KronoPet**. Expone una API REST que conecta el sistema de escritorio de la veterinaria (Python) con la app móvil de los tutores (Flutter).
 
-Backend desarrollado con **NestJS** para la gestión integral de la clínica veterinaria **KronoPet**. Provee una API REST robusta, modular y centralizada encargada de comunicar el sistema de escritorio de la veterinaria (desarrollado en Python) con la aplicación móvil de consulta para los tutores (desarrollada en Flutter).
-
-* **Autenticación y Cuentas:** Sistema de registro e inicio de sesión con hashing asíncrono de contraseñas y firma de tokens JWT.
-* **Gestión Centralizada de Pacientes:** Control absoluto de fichas de mascotas asociadas directamente a sus dueños mediante llaves foráneas (`UUID`).
-* **Historial Clínico Digital:** Registro detallado de atenciones médicas (diagnósticos, observaciones, recetas escritas en texto plano y control de peso) ordenadas cronológicamente.
-* **Carnet Sanitario de Vacunas:** Control preventivo del estado de inmunizaciones ("Aplicada" o "Pendiente") con alertas de expiración/refuerzo.
-
----
-
-📊 **Modelo de Base de Datos**
-
-Estructura relacional nativa diseñada en **PostgreSQL** y gestionada mediante **Prisma ORM**. Las eliminaciones están configuradas en cascada (`onDelete: Cascade`) para asegurar la integridad referencial. El diseño definitivo cuenta con las siguientes entidades:
-
-1.  **User:** Datos básicos de inicio de sesión, credenciales y contacto de los tutores/dueños de mascotas.
-2.  **Pet:** Información del perfil del animal (nombre, especie, raza, género, fecha de nacimiento y estado reproductivo).
-3.  **MedicalEvent:** Bloque completo de texto plano que almacena las consultas médicas y recetas digitadas por el veterinario.
-4.  **Vaccine:** Registro del calendario preventivo y dosis de inmunización de cada paciente.
+* **Autenticación:** registro e inicio de sesión con contraseñas hasheadas (bcrypt) y tokens JWT.
+* **Pacientes:** fichas de mascotas asociadas a su tutor.
+* **Historial clínico:** atenciones médicas (motivo, diagnóstico, recomendaciones, peso, veterinario) ordenadas por fecha.
+* **Cartola sanitaria:** catálogo de vacunas y antiparasitarios por especie, con estado "Aplicada" / "Pendiente" y fecha de refuerzo.
+* **Dashboard:** KPIs y métricas para el sistema de escritorio.
 
 ---
 
-🏗 **Arquitectura Modular**
+## 🚀 Puesta en marcha
 
-El proyecto sigue una arquitectura limpia basada en dominios para asegurar la mantenibilidad y un acoplamiento débil entre componentes:
+### Requisitos
 
-* **Modules:** Organización lógica por contexto de negocio (`AuthModule`, `PetsModule`, `MedicalEventsModule`, `VaccinesModule`, `PrismaModule`).
-* **Controllers:** Capa encargada de exponer y mapear los endpoints HTTP correspondientes.
-* **Services:** Contenedores aislados de la lógica de negocio, validaciones y queries hacia Prisma.
-* **Prisma Infrastructure:** Capa de infraestructura configurada mediante un driver adapter profesional para la gestión óptima del pool de conexiones en la base de datos.
+* [Node.js](https://nodejs.org/) 22 o superior
+* [pnpm](https://pnpm.io/) 10 (`npm install -g pnpm`)
+* [Docker Desktop](https://www.docker.com/products/docker-desktop/) (incluye Docker Compose)
+
+No necesitas instalar PostgreSQL ni pgAdmin: la base de datos corre en Docker y las tablas y datos de prueba se crean con un comando.
+
+### Pasos
+
+La base de datos corre en Docker y el backend en tu equipo, con recarga automática al guardar cambios.
+
+```bash
+# 1. Clonar e instalar dependencias (también genera el cliente de Prisma)
+git clone https://github.com/Jerimonski/Vety_APP.git
+cd Vety_APP
+pnpm install
+
+# 2. Crear el archivo de variables de entorno
+cp .env.example .env
+
+# 3. Levantar PostgreSQL en Docker
+pnpm db:up
+
+# 4. Crear las tablas y cargar datos de prueba
+pnpm db:setup
+
+# 5. Levantar el backend en modo desarrollo
+pnpm start:dev
+```
+
+La API queda en **http://localhost:3001**. Para comprobar que todo está bien:
+
+```bash
+curl http://localhost:3001/health
+# {"status":"ok","database":"up"}
+```
+
+> En Windows con PowerShell, en vez de `cp` usa `Copy-Item .env.example .env`.
+
+### Datos de prueba (seed)
+
+`pnpm db:setup` carga automáticamente:
+
+* **Catálogo de productos:** 10 vacunas y antiparasitarios para perros y gatos.
+* **Usuario de prueba:** `tutor@kronopet.cl` / `kronopet123`, con dos mascotas (Max y Luna) y su historial.
+
+El seed se puede correr varias veces sin duplicar datos.
+
+### Variables de entorno
+
+Están en `.env.example`. Los valores por defecto funcionan sin cambios.
+
+| Variable | Descripción | Valor por defecto |
+|---|---|---|
+| `POSTGRES_USER` | Usuario de PostgreSQL en Docker | `kronopet` |
+| `POSTGRES_PASSWORD` | Contraseña de PostgreSQL en Docker | `kronopet` |
+| `POSTGRES_DB` | Nombre de la base de datos | `kronopet_db` |
+| `DB_PORT` | Puerto del host donde se expone PostgreSQL | `5433` |
+| `DATABASE_URL` | Conexión que usa el backend (debe coincidir con lo anterior) | `postgresql://kronopet:kronopet@localhost:5433/kronopet_db?schema=public` |
+| `PORT` | Puerto de la API | `3001` |
+| `JWT_SECRET` | Secreto para firmar los tokens | `cambia-este-secreto` |
+
+> PostgreSQL se expone en el puerto **5433** para no chocar con un PostgreSQL instalado en el equipo (que suele usar el 5432). Si cambias `DB_PORT`, actualiza también el puerto en `DATABASE_URL`.
+
+### Comandos útiles
+
+| Comando | Qué hace |
+|---|---|
+| `pnpm db:up` | Levanta PostgreSQL en Docker |
+| `pnpm db:down` | Detiene los contenedores (los datos se conservan) |
+| `pnpm db:setup` | Aplica las migraciones y carga los datos de prueba |
+| `pnpm db:seed` | Vuelve a cargar los datos de prueba |
+| `pnpm db:reset` | **Borra toda la base de datos** y la recrea con los datos de prueba |
+| `pnpm db:migrate` | Crea una migración nueva después de cambiar `prisma/schema.prisma` |
+| `pnpm db:studio` | Abre Prisma Studio en el navegador para ver y editar los datos |
+| `pnpm start:dev` | Levanta el backend con recarga automática |
+| `pnpm build` | Compila el proyecto en `dist/` |
+| `pnpm lint` | Revisa el código con ESLint |
+| `pnpm test:e2e` | Corre los tests end-to-end (requiere la base de datos levantada) |
+
+Para borrar también los datos guardados en Docker: `docker compose down -v`.
+
+### Cambios en la base de datos
+
+1. Edita `prisma/schema.prisma`.
+2. Corre `pnpm db:migrate` y ponle un nombre a la migración (por ejemplo `add_microchip_to_pet`).
+3. Sube a git la carpeta nueva que se crea en `prisma/migrations/`. Tus compañeros solo tienen que correr `pnpm db:setup` al hacer pull.
+
+### Problemas comunes
+
+* **`Can't reach database server`**: la base de datos no está levantada. Revisa que Docker Desktop esté abierto y corre `pnpm db:up`.
+* **`port is already allocated`**: otro programa usa el puerto. Cambia `DB_PORT` (y `DATABASE_URL`) o `PORT` en el `.env`.
+* **`The database schema is not empty` (P3005)**: tienes una base de datos antigua creada antes de las migraciones actuales. Si no necesitas sus datos, corre `pnpm db:reset`.
 
 ---
 
-🧠 **Stack Tecnológico**
+## 📊 Modelo de base de datos
 
-* **Runtime & Framework:** Node.js & NestJS 11
+PostgreSQL gestionado con **Prisma ORM** (`prisma/schema.prisma`). Las eliminaciones van en cascada para mantener la integridad referencial.
+
+1. **User:** tutores de las mascotas (credenciales y contacto).
+2. **Pet:** perfil del animal (nombre, especie, raza, género, nacimiento, estado reproductivo, peso).
+3. **MedicalEvent:** atenciones clínicas, con categoría y, opcionalmente, el producto aplicado.
+4. **MedicalProductCatalog:** catálogo maestro de vacunas y antiparasitarios por especie, con días para el refuerzo.
+5. **PetMedicalProduct:** cartola sanitaria; relaciona una mascota con un producto del catálogo y su estado.
+
+---
+
+## 🧠 Stack tecnológico
+
+* **Runtime y framework:** Node.js y NestJS 11
 * **Lenguaje:** TypeScript
-* **Base de Datos & ORM:** PostgreSQL & Prisma ORM
-* **Control de Conexiones:** `pg` (Node-Postgres Pool) & `@prisma/adapter-pg`
-* **Seguridad:** JWT (`@nestjs/jwt`), bcrypt
-* **Validación:** `class-validator` & `class-transformer`
+* **Base de datos y ORM:** PostgreSQL 17 y Prisma 7 (con `@prisma/adapter-pg`)
+* **Seguridad:** JWT (`@nestjs/jwt`), bcrypt (`bcryptjs`)
+* **Validación:** `class-validator` y `class-transformer`
+* **Infraestructura local:** Docker Compose
 
 ---
 
-🚦 **Documentación de la API (Endpoints)**
+## 🚦 Endpoints
 
-> 💡 **Nota de desarrollo:** Las rutas se encuentran abiertas (sin Guards de JWT obligatorios) para facilitar la sincronización nativa directa del software de escritorio (Python) y agilizar las pruebas en el entorno móvil (Flutter).
+> 💡 Las rutas están abiertas (sin guards de JWT) para facilitar la sincronización con el sistema de escritorio (Python) y las pruebas en la app móvil (Flutter).
+
+### 0. Estado
+
+* **GET `/health`**: indica si la API y la base de datos están funcionando.
 
 ### 1. 🔐 Autenticación (Auth)
 
-* **POST `/auth/register`**
-    * *Descripción:* Registra un nuevo dueño en el sistema (usualmente ingresado desde la veterinaria). Ocurre hashing de contraseña y omite datos sensibles en la respuesta.
-    * *Body (JSON):*
-        ```json
-        {
-          "email": "tutor.ejemplo@gmail.com",
-          "password": "PasswordSegura123",
-          "name": "Juan Carlos Pérez",
-          "phone": "+56912345678",
-          "address": "Av. connecticut",
-        }
-        ```
+* **POST `/auth/register`**: registra un tutor. La contraseña se guarda hasheada y no se devuelve en la respuesta.
+    ```json
+    {
+      "email": "tutor.ejemplo@gmail.com",
+      "password": "PasswordSegura123",
+      "name": "Juan Carlos Pérez",
+      "phone": "+56912345678",
+      "address": "Av. Connecticut 123"
+    }
+    ```
 
-* **POST `/auth/login`**
-    * *Descripción:* Valida las credenciales del usuario en la base de datos y genera un `backendToken` junto con los datos del perfil para la app móvil.
-    * *Body (JSON):*
-        ```json
-        {
-          "email": "tutor.ejemplo@gmail.com",
-          "password": "PasswordSegura123"
-        }
-        ```
-* **GET `/auth/users`**
-    * *Descripción:* Devuelve la lista completa de tutores registrados en la clínica, incluyendo un arreglo anidado con sus respectivas mascotas.
+* **POST `/auth/login`**: valida las credenciales y devuelve los datos del tutor junto con un `backendToken`.
+    ```json
+    {
+      "email": "tutor.ejemplo@gmail.com",
+      "password": "PasswordSegura123"
+    }
+    ```
 
+* **GET `/auth/users`**: lista todos los tutores con sus mascotas.
 
 ### 2. 🐾 Mascotas (Pets)
 
-* **POST `/pets`**
-    * *Descripción:* Registra una mascota en la base de datos amarrándola a un dueño mediante su `ownerId`.
-    * *Body (JSON):*
-        ```json
-        {
-          "name": "Max",
-          "species": "Perro",
-          "breed": "Golden Retriever",
-          "gender": "Macho",
-          "weight": 34.5,
-          "birthdate": "2022-04-15",
-          "reproductiveStatus": "Castrado",
-          "ownerId": "uuid-del-dueño-aqui"
-        }
-        ```
-
-* **GET `/pets/owner/:ownerId`**
-    * *Descripción:* Devuelve la lista completa de las mascotas registradas a nombre de ese usuario. Utilizado por Flutter para renderizar las tarjetas del Home.
-
-* **GET `/pets/:id`**
-    * *Descripción:* Devuelve la ficha médica extendida de una mascota específica, incluyendo arrays anidados de todo su historial médico y vacunas.
-
-### 📋 3. Historial Clínico (Medical Events)
-
-* **POST `/medical-events`**
-    * *Descripción:* Registra una nueva atención clínica en el sistema.
-    * *Body (JSON):*
-        ```json
-        {
-          "petId": "uuid-de-la-mascota-aqui",
-          "title": "Control Sano y Vacunación Anual",
-          "reason": "Control de rutina.",
-          "observations": "Paciente en excelente condición física.",
-          "diagnosis": "Sano sin patologías.",
-          "recommendations": "Se receta antiparasitario interno (1 tableta).",
-          "weight": 32.5,
-          "veterinarian": "Dr. Alejandro Silva",
-          "date": "2026-05-30"
-        }
-        ```
-
-* **GET `/medical-events/pet/:petId`**
-    * *Descripción:* Trae la lista completa de atenciones médicas exclusivas de la mascota, ordenadas cronológicamente (más reciente primero) para alimentar el Timeline en Flutter.
-
-* **GET `/medical-events/owner/:ownerId`**
-    * *Descripción:* Endpoint estratégico que unifica el historial de todas las mascotas de un solo tutor. Evita peticiones repetitivas (N+1) en Flutter.
-
-### 🧪 4. Catálogo y Cartola Sanitaria (medical-products)
-
-* **POST `/medical-products`**
-    * *Descripción:* Registra un fármaco, vacuna o antiparasitario en el Catálogo Maestro Global (Panel Administrador). Define si es obligatorio (isBase) y los días de desfase para su reaplicación.
-    * *Body (JSON):*
-        ```json
-         {
-           "name": "Antiparasitario Interno Felino Toltrazuril",
-           "targetSpecies": "Gato",
-           "isBase": true,
-           "requiresReinforcement": true,
-           "daysToReinforce": 90
-         }
-        ```
-* **POST `/medical-products/assign`**
-  * *Descripción:*Registra o inyecta una vacuna o fármaco en la cartola específica de una mascota (PetMedicalProduct). Sirve como puente para setear si el estado está "Aplicada" (asociando fecha de aplicación) o "Pendiente".
-  * *Body (JSON):*
+* **POST `/pets`**: registra una mascota asociada a un tutor (`ownerId`).
+    * `species`: `Perro` o `Gato`
+    * `gender`: `Macho` o `Hembra`
+    * `reproductiveStatus` (opcional): `Intacto` o `Esterilizado`
     ```json
-         {
-           "petId": "uuid-de-la-mascota-aqui",
-           "medicalProductCatalogId": "uuid-de-la-vacuna-aqui",
-           "status": "Aplicada", 
-           "appliedDate": "2026-01-20T00:00:00.000Z",
-           "expirationDate": "2027-01-20T00:00:00.000Z"
-         }
+    {
+      "name": "Max",
+      "species": "Perro",
+      "breed": "Golden Retriever",
+      "gender": "Macho",
+      "weight": 34.5,
+      "birthdate": "2022-04-15",
+      "reproductiveStatus": "Esterilizado",
+      "ownerId": "uuid-del-tutor"
+    }
     ```
 
-* **GET `/medical-products/catalog?species=Gato`**
-    * *Descripción:* Lista los fármacos disponibles en el catálogo base. Soporta filtros por especie para poblar los selectores dinámicos en el sistema Python.
+* **GET `/pets/owner/:ownerId`**: mascotas de un tutor, con sus productos aplicados. Lo usa el Home de Flutter.
 
-* **GET `/medical-products/pet/:petId`**
-    * *Descripción:* Devuelve la cartola sanitaria real y calculada de la mascota (vacunas y antiparasitarios aplicados con sus fechas de expiración exactas).
+* **GET `/pets/:id`**: ficha completa de una mascota, con su historial médico y su cartola.
 
-### 📊 5. Panel de Analítica (dashboard)
+### 3. 📋 Historial clínico (Medical Events)
 
-* **GET `/dashboard`**
-    * *Descripción:* Endpoint centralizado para el software de escritorio en Python. Retorna KPIs globales, registros demográficos segmentados por tiempo (hoy, semana, mes) y las métricas de atenciones mensuales listas para graficar.
+* **POST `/medical-events`**: registra una atención.
+    * `category`: `Inmunizacion`, `Consulta`, `Cirugia` o `Desparasitacion`
+    * `appliedProductId` (opcional): producto del catálogo aplicado. Si requiere refuerzo, actualiza la cartola de la mascota con la fecha de vencimiento calculada.
+    ```json
+    {
+      "petId": "uuid-de-la-mascota",
+      "category": "Inmunizacion",
+      "title": "Control sano y vacunación anual",
+      "reason": "Control de rutina.",
+      "observations": "Paciente en excelente condición física.",
+      "diagnosis": "Sano sin patologías.",
+      "recommendations": "Se receta antiparasitario interno (1 tableta).",
+      "weight": 32.5,
+      "veterinarian": "Dr. Alejandro Silva",
+      "date": "2026-05-30",
+      "appliedProductId": "uuid-del-producto"
+    }
+    ```
+
+* **GET `/medical-events/pet/:petId`**: atenciones de una mascota, de la más reciente a la más antigua.
+
+* **GET `/medical-events/owner/:ownerId`**: atenciones de todas las mascotas de un tutor en una sola petición.
+
+### 4. 🧪 Catálogo y cartola sanitaria (Medical Products)
+
+* **POST `/medical-products`**: agrega un producto al catálogo maestro.
+    ```json
+    {
+      "name": "Antiparasitario Interno Felino Toltrazuril",
+      "targetSpecies": "Gato",
+      "isBase": true,
+      "requiresReinforcement": true,
+      "daysToReinforce": 90
+    }
+    ```
+
+* **POST `/medical-products/assign`**: registra un producto en la cartola de una mascota. Si ya estaba registrado, lo actualiza.
+    * `status`: `Aplicada` o `Pendiente`
+    ```json
+    {
+      "petId": "uuid-de-la-mascota",
+      "medicalProductCatalogId": "uuid-del-producto",
+      "status": "Aplicada",
+      "appliedDate": "2026-01-20T00:00:00.000Z",
+      "expirationDate": "2027-01-20T00:00:00.000Z"
+    }
+    ```
+
+* **GET `/medical-products/catalog?species=Gato`**: lista el catálogo, con filtro opcional por especie.
+
+* **GET `/medical-products/pet/:petId`**: cartola completa de la mascota: todos los productos de su especie, con los aplicados y los pendientes.
+
+### 5. 📊 Dashboard
+
+* **GET `/dashboard`**: KPIs globales, registros de hoy, la semana y el mes, y atenciones del mes por categoría, listas para graficar.
 
 ---
 
-📂 **Estructura del Proyecto**
+## 📂 Estructura del proyecto
 
 ```text
-src/
-├── main.ts                       # Punto de entrada de la aplicación NestJS (Puerto 3001)
-├── app.module.ts                 # Módulo raíz que centraliza los 5 módulos del negocio
-├── prisma/                       # Conector global de Prisma Service
-│
-├── auth/                         # Gestión de Usuarios y Login
-│   ├── dto/                      # login.dto.ts, register.dto.ts
-│   ├── auth.controller.ts
-│   ├── auth.service.ts
-│   └── auth.module.ts
-│
-├── pets/                         # Gestión y Fichas de Mascotas
-│   ├── dto/                      # create-pet.dto.ts
-│   ├── pets.controller.ts
-│   ├── pets.service.ts
-│   └── pets.module.ts
-│
-├── medical-events/               # Atenciones Clínicas y Transacciones
-│   ├── dto/                      # create-medical-event.dto.ts
-│   ├── medical-events.controller.ts
-│   ├── medical-events.service.ts
-│   └── medical-events.module.ts
-│
-├── medical-products/             # Catálogo Maestro y Cartolas Sanitarias (Ex-Vaccines)
-│   ├── dto/                      # create-medical-product.dto.ts
-│   ├── medical-products.controller.ts
-│   ├── medical-products.service.ts
-│   └── medical-products.module.ts
-│
-└── dashboard/                    # Endpoints Estadísticos para la app de Python
-    ├── dashboard.controller.ts
-    ├── dashboard.service.ts
-    └── dashboard.module.ts
-```
-## Scripts de Inicialización
-### 1. Instalación de dependencias
-```
-pnpm install
-```
-### 2. Generar el Cliente de Prisma
-```
-pnpm prisma generate
-```
-### 3. Ejecutar Migraciones (Base de Datos)
-```
-pnpm prisma migrate dev
-```
-### 4. Levantar el Entorno de Desarrollo
-```
-pnpm run start:dev
+.
+├── docker-compose.yml            # PostgreSQL en Docker
+├── Dockerfile                    # Imagen del backend
+├── .env.example                  # Variables de entorno de ejemplo
+├── prisma.config.ts              # Configuración de Prisma (schema, migraciones, seed)
+├── prisma/
+│   ├── schema.prisma             # Modelo de datos
+│   ├── migrations/               # Migraciones SQL versionadas
+│   ├── seed.ts                   # Datos de prueba
+│   ├── prisma.module.ts          # Módulo global de Prisma
+│   └── prisma.service.ts         # Conexión a PostgreSQL
+└── src/
+    ├── main.ts                   # Punto de entrada (puerto 3001)
+    ├── app.module.ts             # Módulo raíz
+    ├── app.controller.ts         # GET /health
+    ├── auth/                     # Registro, login y tutores
+    ├── pets/                     # Mascotas
+    ├── medical-events/           # Historial clínico
+    ├── medical-products/         # Catálogo y cartola sanitaria
+    └── dashboard/                # Estadísticas para el sistema de escritorio
 ```
