@@ -15,13 +15,15 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   private readonly logger = new Logger('PrismaService');
+  private readonly pool: Pool;
 
   constructor() {
     const pool = new Pool({
       connectionString: process.env.DATABASE_URL,
     });
 
-    super({ adapter: new PrismaPg(pool) as any });
+    super({ adapter: new PrismaPg(pool) });
+    this.pool = pool;
   }
 
   async onModuleInit() {
@@ -36,6 +38,8 @@ export class PrismaService
 
   async onModuleDestroy() {
     await this.$disconnect();
+    // El pool es nuestro: Prisma no lo cierra al desconectarse
+    await this.pool.end();
     this.logger.log('Conexión a PostgreSQL Finalizada');
   }
 }

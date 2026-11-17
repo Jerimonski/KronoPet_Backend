@@ -92,18 +92,53 @@ enum ReminderStatus {
 
 // --- MODELOS ---
 
+// Cuenta de la plataforma KronoPet: solo da de alta clínicas (no ve datos clínicos)
+model PlatformAdmin {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(120)
+  email        String   @unique @db.Citext
+  passwordHash String   @db.Text
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamp()
+
+  clinics Clinic[]
+
+  @@map("platform_admins")
+}
+
+// Clínica cliente: todo su personal, tutores (y lo que cuelga de ellos) y auditoría le pertenecen
+model Clinic {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(120)
+  rut       String   @unique @db.VarChar(12)
+  email     String   @db.Citext
+  phone     String?  @db.VarChar(20)
+  address   String?  @db.VarChar(200)
+  createdAt DateTime @default(now()) @db.Timestamp()
+  createdBy String?  @db.Uuid
+
+  creator          PlatformAdmin?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  staff            StaffUser[]
+  tutors           Tutor[]
+  auditEntries     AuditEntry[]
+  reminderSettings ReminderSettings?
+
+  @@map("clinics")
+}
+
 model StaffUser {
-  id            String     @id @default(uuid()) @db.Uuid
-  name          String     @db.VarChar(120)
-  rut           String     @unique @db.VarChar(12)
-  email         String     @unique @db.Citext
-  phone         String?    @db.VarChar(20)
+  id            String    @id @default(uuid()) @db.Uuid
+  clinicId      String    @db.Uuid
+  name          String    @db.VarChar(120)
+  rut           String    @unique @db.VarChar(12)
+  email         String    @unique @db.Citext
+  phone         String?   @db.VarChar(20)
   role          StaffRole
-  specialty     String?    @db.VarChar(120)
-  passwordHash  String     @db.Text
-  active        Boolean    @default(true)
-  createdAt     DateTime   @default(now()) @db.Timestamp()
-  deactivatedAt DateTime?  @db.Timestamp()
+  specialty     String?   @db.VarChar(120)
+  passwordHash  String    @db.Text
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now()) @db.Timestamp()
+  deactivatedAt DateTime? @db.Timestamp()
 
   medicalEvents MedicalEvent[]
   petAlerts     PetAlert[]
@@ -111,23 +146,30 @@ model StaffUser {
   auditEntries  AuditEntry[]
   reminderLogs  ReminderLog[]
 
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId])
   @@map("staff_users")
 }
 
 model Tutor {
-  id           String    @id @default(uuid()) @db.Uuid
-  name         String    @db.VarChar(120)
-  rut          String    @unique @db.VarChar(12)
-  email        String    @unique @db.Citext
-  phone        String?   @db.VarChar(20)
-  address      String?   @db.VarChar(200)
-  passwordHash String?   @db.Text
-  createdAt    DateTime  @default(now()) @db.Timestamp()
-  updatedAt    DateTime  @updatedAt @db.Timestamp()
+  id           String   @id @default(uuid()) @db.Uuid
+  clinicId     String   @db.Uuid
+  name         String   @db.VarChar(120)
+  rut          String   @unique @db.VarChar(12)
+  email        String   @unique @db.Citext
+  phone        String?  @db.VarChar(20)
+  address      String?  @db.VarChar(200)
+  passwordHash String?  @db.Text
+  createdAt    DateTime @default(now()) @db.Timestamp()
+  updatedAt    DateTime @updatedAt @db.Timestamp()
 
   pets         Pet[]
   reminderLogs ReminderLog[]
 
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+
+  @@index([clinicId])
   @@map("tutors")
 }
 
@@ -142,7 +184,7 @@ model Pet {
   reproductiveStatus ReproductiveStatus
   createdAt          DateTime           @default(now()) @db.Timestamp()
 
-  tutor         Tutor           @relation(fields: [tutorId], references: [id], onDelete: Restrict)
+  tutor         Tutor          @relation(fields: [tutorId], references: [id], onDelete: Restrict)
   alerts        PetAlert[]
   medicalEvents MedicalEvent[]
   attachments   Attachment[]
@@ -188,16 +230,16 @@ model MedicalEvent {
 }
 
 model Attachment {
-  id          String             @id @default(uuid()) @db.Uuid
-  eventId     String             @db.Uuid
-  petId       String             @db.Uuid
-  name        String             @db.VarChar(255)
-  mimeType    String             @db.VarChar(50)
-  size        Int
-  category    AttachmentCategory
-  storageKey  String             @db.Text
-  uploadedAt  DateTime           @default(now()) @db.Timestamp()
-  uploadedBy  String             @db.Uuid
+  id         String             @id @default(uuid()) @db.Uuid
+  eventId    String             @db.Uuid
+  petId      String             @db.Uuid
+  name       String             @db.VarChar(255)
+  mimeType   String             @db.VarChar(50)
+  size       Int
+  category   AttachmentCategory
+  storageKey String             @db.Text
+  uploadedAt DateTime           @default(now()) @db.Timestamp()
+  uploadedBy String             @db.Uuid
 
   event    MedicalEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
   pet      Pet          @relation(fields: [petId], references: [id], onDelete: Cascade)
@@ -217,21 +259,21 @@ model Vaccine {
   description String        @default("") @db.Text
   createdAt   DateTime      @default(now()) @db.Timestamp()
 
-  pet     Pet                   @relation(fields: [petId], references: [id], onDelete: Cascade)
+  pet     Pet                    @relation(fields: [petId], references: [id], onDelete: Cascade)
   catalog MedicalProductCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)
 
   @@map("vaccines")
 }
 
 model MedicalProductCatalog {
-  id                   String   @id @default(uuid()) @db.Uuid
-  name                 String   @unique
-  targetSpecies        Species
-  isBase               Boolean  @default(false)
-  requiresReinforcement Boolean @default(true)
-  daysToReinforce      Int?
-  createdAt            DateTime @default(now()) @db.Timestamp()
-  updatedAt            DateTime @updatedAt @db.Timestamp()
+  id                    String   @id @default(uuid()) @db.Uuid
+  name                  String   @unique
+  targetSpecies         Species
+  isBase                Boolean  @default(false)
+  requiresReinforcement Boolean  @default(true)
+  daysToReinforce       Int?
+  createdAt             DateTime @default(now()) @db.Timestamp()
+  updatedAt             DateTime @updatedAt @db.Timestamp()
 
   vaccines Vaccine[]
 
@@ -241,6 +283,7 @@ model MedicalProductCatalog {
 model AuditEntry {
   id          String      @id @default(uuid()) @db.Uuid
   at          DateTime    @default(now()) @db.Timestamp()
+  clinicId    String      @db.Uuid
   actorId     String?     @db.Uuid
   action      AuditAction
   entity      AuditEntity
@@ -248,38 +291,43 @@ model AuditEntry {
   entityLabel String      @db.VarChar(200)
   changes     Json?
 
-  actor StaffUser? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  actor  StaffUser? @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  clinic Clinic     @relation(fields: [clinicId], references: [id], onDelete: Restrict)
 
+  @@index([clinicId, at])
   @@map("audit_entries")
 }
 
 model ReminderLog {
-  id        String         @id @default(uuid()) @db.Uuid
-  key       String         @db.VarChar(120)
-  kind      ReminderKind
-  tutorId   String         @db.Uuid
-  petId     String         @db.Uuid
-  refId     String         @db.Uuid
-  dueDate   DateTime       @db.Date
-  toEmail   String         @db.Citext
-  sentAt    DateTime       @default(now()) @db.Timestamp()
-  sentBy    String?        @db.Uuid
-  status    ReminderStatus
-  error     String?        @db.Text
+  id      String         @id @default(uuid()) @db.Uuid
+  key     String         @db.VarChar(120)
+  kind    ReminderKind
+  tutorId String         @db.Uuid
+  petId   String         @db.Uuid
+  refId   String         @db.Uuid
+  dueDate DateTime       @db.Date
+  toEmail String         @db.Citext
+  sentAt  DateTime       @default(now()) @db.Timestamp()
+  sentBy  String?        @db.Uuid
+  status  ReminderStatus
+  error   String?        @db.Text
 
-  tutor Tutor      @relation(fields: [tutorId], references: [id], onDelete: Cascade)
-  pet   Pet        @relation(fields: [petId], references: [id], onDelete: Cascade)
+  tutor  Tutor      @relation(fields: [tutorId], references: [id], onDelete: Cascade)
+  pet    Pet        @relation(fields: [petId], references: [id], onDelete: Cascade)
   sender StaffUser? @relation(fields: [sentBy], references: [id])
 
   @@index([key])
   @@map("reminder_logs")
 }
 
+// Una fila por clínica
 model ReminderSettings {
-  id          Int      @id @default(1) @db.SmallInt
-  daysBefore  Int      @default(7) @db.SmallInt
-  autoSend    Boolean  @default(false)
+  clinicId    String    @id @db.Uuid
+  daysBefore  Int       @default(7) @db.SmallInt
+  autoSend    Boolean   @default(false)
   lastAutoRun DateTime? @db.Date
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
 
   @@map("reminder_settings")
 }
