@@ -17,4 +17,6 @@ RUN pnpm run build
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "pnpm prisma migrate deploy && pnpm prisma db seed && node dist/src/main.js"]
+# Aplica migraciones y levanta la API. El seed NO corre en cada arranque (en producción
+# se carga una sola vez a mano: pnpm db:seed con DATABASE_URL apuntando a la base).
+CMD ["sh", "-c", "pnpm prisma migrate deploy && node dist/src/main.js"]
