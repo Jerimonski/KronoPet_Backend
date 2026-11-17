@@ -1,24 +1,24 @@
-import { IsDateString, IsIn, IsOptional, IsUUID } from 'class-validator';
-
-const VALID_STATUS = ['Aplicada', 'Pendiente'];
+import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { VaccineStatus } from '@prisma/client';
 
 export class AssignMedicalProductDto {
   @IsUUID()
   petId!: string;
 
   @IsUUID()
-  medicalProductCatalogId!: string;
+  catalogId!: string;
 
-  @IsIn(VALID_STATUS, {
-    message: `El estado debe ser uno de los siguientes: ${VALID_STATUS.join(', ')}`,
+  @IsEnum(VaccineStatus, {
+    message: `El estado debe ser uno de los siguientes: ${Object.values(VaccineStatus).join(', ')}`,
   })
-  status!: string;
+  status!: VaccineStatus;
 
   @IsDateString()
   @IsOptional()
-  appliedDate?: string;
+  appliedAt?: string;
 
+  // Si no viene, se calcula con appliedAt + daysToReinforce del catálogo
   @IsDateString()
   @IsOptional()
-  expirationDate?: string;
+  expiresAt?: string;
 }

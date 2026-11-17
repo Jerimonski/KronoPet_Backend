@@ -5,10 +5,21 @@ import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
-    JwtModule.register({
+    JwtModule.registerAsync({
       global: true,
-      secret: process.env.JWT_SECRET || 'SecretKeyPorDefecto',
-      signOptions: { expiresIn: '7d' },
+      useFactory: () => {
+        // Sin secreto propio cualquiera podría firmar tokens válidos
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+          throw new Error('Falta JWT_SECRET en el .env');
+        }
+        return {
+          secret,
+          signOptions: {
+            expiresIn: (process.env.JWT_EXPIRES_IN ?? '8h') as '8h',
+          },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

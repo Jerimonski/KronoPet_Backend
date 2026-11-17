@@ -1,10 +1,13 @@
 import {
   Injectable,
+  BadRequestException,
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { Species, VaccineStatus } from '@prisma/client';
 import { CreateMedicalProductDto } from './dto/create-medical-products.dto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { savePetVaccine } from './pet-vaccine';
 
 @Injectable()
 export class MedicalProductsService {
@@ -27,116 +30,117 @@ export class MedicalProductsService {
     });
   }
 
-  async findCatalogBySpecies(species?: string) {
+  async findCatalogBySpecies(species?: Species) {
     return this.prisma.medicalProductCatalog.findMany({
-      where: species
-        ? { targetSpecies: { equals: species, mode: 'insensitive' } }
-        : {},
+      where: species ? { targetSpecies: species } : {},
       orderBy: { name: 'asc' },
     });
   }
 
-  async findPetCartola(petId: string) {
-    const pet = await this.prisma.pet.findUnique({
-      where: { id: petId },
+  // Cartola sanitaria: todo el catálogo de la especie, con el registro de la
+  // mascota si existe o "pendiente" si nunca se le aplicó.
+  async findPetCartola(petId: string, clinicId: string) {
+    const pet = await this.prisma.pet.findFirst({
+      where: { id: petId, tutor: { clinicId } },
     });
     if (!pet) {
       throw new NotFoundException('La mascota especificada no existe');
     }
 
     const speciesCatalog = await this.prisma.medicalProductCatalog.findMany({
-      where: {
-        targetSpecies: { equals: pet.species, mode: 'insensitive' },
-      },
+      where: { targetSpecies: pet.species },
       orderBy: { name: 'asc' },
     });
 
-    const petProducts = await this.prisma.petMedicalProduct.findMany({
+    // Ordenadas de la más reciente a la más antigua: find() toma la última
+    const petVaccines = await this.prisma.vaccine.findMany({
       where: { petId },
-      include: { medicalProductCatalog: true },
+      include: { catalog: true },
+      orderBy: { createdAt: 'desc' },
     });
 
-    const fullCartola = speciesCatalog.map((catalogItem) => {
-      const userRecord = petProducts.find(
-        (pp) => pp.medicalProductCatalogId === catalogItem.id,
-      );
+    const catalogCartola = speciesCatalog.map((catalogItem) => {
+      const vaccine = petVaccines.find((v) => v.catalogId === catalogItem.id);
 
-      if (userRecord) {
-        return {
-          id: userRecord.id,
-          petId: userRecord.petId,
-          medicalProductCatalogId: userRecord.medicalProductCatalogId,
-          status: userRecord.status,
-          appliedDate: userRecord.appliedDate,
-          expirationDate: userRecord.expirationDate,
-          createdAt: userRecord.createdAt,
-          updatedAt: userRecord.updatedAt,
-          medicalProductCatalog: catalogItem,
-        };
+      if (vaccine) {
+        return vaccine;
       }
 
       return {
         id: `temp-${catalogItem.id}`,
         petId: pet.id,
-        medicalProductCatalogId: catalogItem.id,
-        status: 'Pendiente',
-        appliedDate: null,
-        expirationDate: null,
+        catalogId: catalogItem.id,
+        name: catalogItem.name,
+        status: VaccineStatus.pendiente,
+        appliedAt: null,
+        expiresAt: null,
+        description: '',
         createdAt: new Date(),
-        updatedAt: new Date(),
-        medicalProductCatalog: catalogItem,
+        catalog: catalogItem,
       };
     });
 
-    return fullCartola;
+    // Vacunas fuera del catálogo de la especie (o sin catálogo)
+    const speciesCatalogIds = new Set(speciesCatalog.map((c) => c.id));
+    const otherVaccines = petVaccines.filter(
+      (v) => !v.catalogId || !speciesCatalogIds.has(v.catalogId),
+    );
+
+    return [...catalogCartola, ...otherVaccines];
   }
 
   async assignProductToPet(data: {
+    clinicId: string;
     petId: string;
-    medicalProductCatalogId: string;
-    status: string;
-    appliedDate?: Date;
-    expirationDate?: Date;
+    catalogId: string;
+    status: VaccineStatus;
+    appliedAt?: Date;
+    expiresAt?: Date;
   }) {
-    const petExists = await this.prisma.pet.findUnique({
-      where: { id: data.petId },
+    const petExists = await this.prisma.pet.findFirst({
+      where: { id: data.petId, tutor: { clinicId: data.clinicId } },
     });
     if (!petExists) {
       throw new NotFoundException('La mascota especificada no existe');
     }
 
-    const catalogExists = await this.prisma.medicalProductCatalog.findUnique({
-      where: { id: data.medicalProductCatalogId },
+    const catalog = await this.prisma.medicalProductCatalog.findUnique({
+      where: { id: data.catalogId },
     });
-    if (!catalogExists) {
+    if (!catalog) {
       throw new NotFoundException(
         'El producto del catálogo especificado no existe',
       );
     }
 
-    const record = {
-      status: data.status,
-      appliedDate: data.appliedDate || null,
-      expirationDate: data.expirationDate || null,
-    };
+    if (catalog.targetSpecies !== petExists.species) {
+      throw new BadRequestException(
+        `Este producto está catalogado exclusivamente para la especie: ${catalog.targetSpecies}`,
+      );
+    }
 
-    // Upsert: si la mascota ya tenía este producto, se actualiza en vez de fallar por el índice único
-    return this.prisma.petMedicalProduct.upsert({
-      where: {
-        petId_medicalProductCatalogId: {
-          petId: data.petId,
-          medicalProductCatalogId: data.medicalProductCatalogId,
-        },
-      },
-      update: record,
-      create: {
-        petId: data.petId,
-        medicalProductCatalogId: data.medicalProductCatalogId,
-        ...record,
-      },
-      include: {
-        medicalProductCatalog: true,
-      },
+    const appliedAt =
+      data.appliedAt ??
+      (data.status === VaccineStatus.aplicada ? new Date() : null);
+
+    let expiresAt = data.expiresAt;
+    if (!expiresAt && catalog.daysToReinforce) {
+      expiresAt = new Date(appliedAt ?? new Date());
+      expiresAt.setDate(expiresAt.getDate() + catalog.daysToReinforce);
+    }
+    if (!expiresAt) {
+      throw new BadRequestException(
+        'Debes indicar expiresAt: el producto no tiene días de refuerzo definidos',
+      );
+    }
+
+    return savePetVaccine(this.prisma, {
+      petId: data.petId,
+      catalogId: catalog.id,
+      name: catalog.name,
+      status: data.status,
+      appliedAt,
+      expiresAt,
     });
   }
 }

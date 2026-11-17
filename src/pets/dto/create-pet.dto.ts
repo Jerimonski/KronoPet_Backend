@@ -3,48 +3,44 @@ import {
   IsOptional,
   IsDateString,
   IsUUID,
-  IsIn,
-  IsNumber,
+  IsEnum,
+  IsNotEmpty,
+  MaxLength,
 } from 'class-validator';
-
-const VALID_SPECIES = ['Perro', 'Gato'];
-const VALID_GENDERS = ['Macho', 'Hembra'];
-const VALID_STATUS = ['Intacto', 'Esterilizado'];
+import { PetSex, ReproductiveStatus, Species } from '@prisma/client';
+import { IsNotFutureDay } from '../../common/validators';
 
 export class CreatePetDto {
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
   name!: string;
 
-  @IsString()
-  @IsIn(VALID_SPECIES, {
-    message: `La especie debe ser una de las siguientes opciones: ${VALID_SPECIES.join(', ')}`,
+  @IsEnum(Species, {
+    message: `La especie debe ser una de las siguientes opciones: ${Object.values(Species).join(', ')}`,
   })
-  species!: string;
+  species!: Species;
 
   @IsString()
-  @IsOptional()
-  breed?: string;
+  @IsNotEmpty({ message: 'La raza es obligatoria' })
+  @MaxLength(80)
+  breed!: string;
 
-  @IsString()
-  @IsIn(VALID_GENDERS, {
-    message: `El género debe ser uno de los siguientes: ${VALID_GENDERS.join(', ')}`,
+  @IsEnum(PetSex, {
+    message: `El sexo debe ser uno de los siguientes: ${Object.values(PetSex).join(', ')}`,
   })
-  gender!: string;
+  sex!: PetSex;
 
   @IsDateString()
-  birthdate!: string;
-
-  @IsString()
+  @IsNotFutureDay()
   @IsOptional()
-  @IsIn(VALID_STATUS, {
-    message: `El estado reproductivo debe ser: ${VALID_STATUS.join(', ')}`,
+  birthDate?: string;
+
+  @IsEnum(ReproductiveStatus, {
+    message: `El estado reproductivo debe ser: ${Object.values(ReproductiveStatus).join(', ')}`,
   })
-  reproductiveStatus?: string;
-
-  @IsNumber()
-  @IsOptional()
-  weight?: number; // 🌟 AGREGADO: Permite recibir el peso actual desde Flutter
+  reproductiveStatus!: ReproductiveStatus;
 
   @IsUUID()
-  ownerId!: string;
+  tutorId!: string;
 }

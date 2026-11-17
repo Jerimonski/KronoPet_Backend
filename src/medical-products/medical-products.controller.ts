@@ -5,11 +5,14 @@ import {
   Body,
   Param,
   Query,
+  ParseEnumPipe,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { Species } from '@prisma/client';
 import { MedicalProductsService } from './medical-products.service';
 import { CreateMedicalProductDto } from './dto/create-medical-products.dto';
 import { AssignMedicalProductDto } from './dto/assign-medical-product.dto';
+import { AuthUser, CurrentUser, StaffOnly } from '../common/decorators';
 
 @Controller('medical-products')
 export class MedicalProductsController {
@@ -17,31 +20,41 @@ export class MedicalProductsController {
     private readonly medicalProductsService: MedicalProductsService,
   ) {}
 
+  @StaffOnly()
   @Post()
   create(@Body() createMedicalProductDto: CreateMedicalProductDto) {
     return this.medicalProductsService.create(createMedicalProductDto);
   }
 
+  @StaffOnly()
   @Post('assign')
-  assignProduct(@Body() dto: AssignMedicalProductDto) {
+  assignProduct(
+    @Body() dto: AssignMedicalProductDto,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.medicalProductsService.assignProductToPet({
+      clinicId: user.clinicId!,
       petId: dto.petId,
-      medicalProductCatalogId: dto.medicalProductCatalogId,
+      catalogId: dto.catalogId,
       status: dto.status,
-      appliedDate: dto.appliedDate ? new Date(dto.appliedDate) : undefined,
-      expirationDate: dto.expirationDate
-        ? new Date(dto.expirationDate)
-        : undefined,
+      appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
+      expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
     });
   }
 
   @Get('catalog')
-  findCatalog(@Query('species') species?: string) {
+  findCatalog(
+    @Query('species', new ParseEnumPipe(Species, { optional: true }))
+    species?: Species,
+  ) {
     return this.medicalProductsService.findCatalogBySpecies(species);
   }
 
   @Get('pet/:petId')
-  findPetCartola(@Param('petId', ParseUUIDPipe) petId: string) {
-    return this.medicalProductsService.findPetCartola(petId);
+  findPetCartola(
+    @Param('petId', ParseUUIDPipe) petId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.medicalProductsService.findPetCartola(petId, user.clinicId!);
   }
 }

@@ -1,6 +1,8 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
@@ -8,6 +10,8 @@ import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
+import { toStaff } from '../common/mappers';
+import { PLATFORM_ROLE } from '../common/decorators';
 
 @Injectable()
 export class AuthService {
@@ -17,59 +21,130 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, name, phone, address } = registerDto;
+    const { clinicId, email, password, name, rut, phone, address } =
+      registerDto;
 
-    const userExists = await this.prisma.user.findUnique({ where: { email } });
-    if (userExists) {
+    const clinic = await this.prisma.clinic.findUnique({
+      where: { id: clinicId },
+    });
+    if (!clinic) {
+      throw new BadRequestException('La clínica no existe');
+    }
+
+    const tutorExists = await this.prisma.tutor.findFirst({
+      where: { OR: [{ email }, { rut }] },
+    });
+    if (tutorExists) {
       throw new BadRequestException(
-        'Este correo electrónico ya se encuentra registrado',
+        'Ya existe un tutor registrado con ese correo o RUT',
       );
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const passwordHash = await bcrypt.hash(password, salt);
 
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        phone,
-        address,
-      },
+    const tutor = await this.prisma.tutor.create({
+      data: { clinicId, email, passwordHash, name, rut, phone, address },
     });
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { passwordHash: _, ...tutorWithoutPassword } = tutor;
 
-    return userWithoutPassword;
+    return tutorWithoutPassword;
   }
 
+  // Login de tutores (app móvil)
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
 
-    const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user) {
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { email },
+      include: { clinic: { select: { id: true, name: true } } },
+    });
+    // Un tutor creado por la clínica puede no tener contraseña aún
+    if (!tutor?.passwordHash) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, tutor.passwordHash);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    const payload = { sub: user.id, email: user.email };
-
-    // 🌟 CORREGIDO: Extraemos de forma limpia todo el usuario (incluyendo phone y address) omitiendo la contraseña
-    const { password: _, ...userWithoutPassword } = user;
+    const payload = { sub: tutor.id, email: tutor.email, role: 'tutor' };
+    const { passwordHash: _, clinic, ...tutorWithoutPassword } = tutor;
 
     return {
-      user: userWithoutPassword, // Ahora el frontend recibe la data completa del tutor
+      user: tutorWithoutPassword,
+      // La app muestra la clínica del tutor en su perfil y en el carnet
+      clinic,
       backendToken: this.jwtService.sign(payload),
     };
   }
 
-  async findAllWithPets() {
-    return this.prisma.user.findMany({
+  // Login del personal de la clínica (sistema de escritorio)
+  async staffLogin(loginDto: LoginDto) {
+    const { email, password } = loginDto;
+
+    // Mismo mensaje si falla el correo o la contraseña: no revela qué cuentas existen
+    const staff = await this.prisma.staffUser.findUnique({
+      where: { email: email.trim() },
+      include: { clinic: { select: { id: true, name: true } } },
+    });
+    if (!staff || !(await bcrypt.compare(password, staff.passwordHash))) {
+      throw new UnauthorizedException('Correo o contraseña incorrectos.');
+    }
+
+    if (!staff.active) {
+      throw new ForbiddenException(
+        'Tu cuenta está deshabilitada. Contacta al administrador de la clínica.',
+      );
+    }
+
+    const payload = { sub: staff.id, email: staff.email, role: staff.role };
+
+    return {
+      user: toStaff(staff),
+      clinic: staff.clinic,
+      backendToken: this.jwtService.sign(payload),
+    };
+  }
+
+  // Login de la cuenta de la plataforma (panel que da de alta clínicas)
+  async platformLogin(loginDto: LoginDto) {
+    const { email, password } = loginDto;
+
+    const admin = await this.prisma.platformAdmin.findUnique({
+      where: { email: email.trim() },
+    });
+    if (!admin || !(await bcrypt.compare(password, admin.passwordHash))) {
+      throw new UnauthorizedException('Correo o contraseña incorrectos.');
+    }
+    if (!admin.active) {
+      throw new ForbiddenException('Tu cuenta está deshabilitada.');
+    }
+
+    const payload = { sub: admin.id, email: admin.email, role: PLATFORM_ROLE };
+
+    return {
+      user: { id: admin.id, name: admin.name, email: admin.email },
+      backendToken: this.jwtService.sign(payload),
+    };
+  }
+
+  async me(staffId: string) {
+    const staff = await this.prisma.staffUser.findUnique({
+      where: { id: staffId },
+    });
+    if (!staff) {
+      throw new NotFoundException('El usuario no existe.');
+    }
+    return toStaff(staff);
+  }
+
+  async findAllTutorsWithPets(clinicId: string) {
+    return this.prisma.tutor.findMany({
+      where: { clinicId },
+      omit: { passwordHash: true },
       include: {
         pets: true,
       },

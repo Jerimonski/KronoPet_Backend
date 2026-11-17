@@ -1,16 +1,21 @@
-import { IsString, IsBoolean, IsInt, IsIn, IsPositive } from 'class-validator';
-
-const VALID_SPECIES = ['Perro', 'Gato'];
+import {
+  IsString,
+  IsBoolean,
+  IsInt,
+  IsEnum,
+  IsPositive,
+  ValidateIf,
+} from 'class-validator';
+import { Species } from '@prisma/client';
 
 export class CreateMedicalProductDto {
   @IsString()
   name!: string;
 
-  @IsString()
-  @IsIn(VALID_SPECIES, {
-    message: `La especie objetivo debe ser una de las siguientes opciones: ${VALID_SPECIES.join(', ')}`,
+  @IsEnum(Species, {
+    message: `La especie objetivo debe ser una de las siguientes opciones: ${Object.values(Species).join(', ')}`,
   })
-  targetSpecies!: string;
+  targetSpecies!: Species;
 
   @IsBoolean()
   isBase!: boolean;
@@ -18,9 +23,11 @@ export class CreateMedicalProductDto {
   @IsBoolean()
   requiresReinforcement!: boolean;
 
+  // Solo es obligatorio si el producto requiere refuerzo
+  @ValidateIf((dto: CreateMedicalProductDto) => dto.requiresReinforcement)
   @IsInt()
   @IsPositive({
     message: 'Los días para reaplicación deben ser un número entero positivo',
   })
-  daysToReinforce!: number;
+  daysToReinforce?: number;
 }
